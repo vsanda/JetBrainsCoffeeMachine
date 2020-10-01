@@ -1,0 +1,276 @@
+import edu.duke.Point;
+
+/**
+ * The <code>Kiva</code> class represents a virtual Kiva robot that can move around a warehouse in a particular
+ * floor map. A <code>Kiva</code>  robot can pick up, move, take and drop a pod from the floor map.  <code>Kiva</code>
+ * Robots wear out and need to be replaced after 20,000 hours.  The <code>motorLifetime</code> variable tracks
+ * <code>Kiva</code>'s current lifetime in milliseconds.
+ *
+ * @author viosanda
+ */
+public class Kiva {
+
+    private final FloorMap map;
+    private Point currentLocation;
+    private FacingDirection directionFacing;
+    private boolean carryingPod;
+    private boolean successfullyDropped;
+    private long motorLifetime;
+
+    /**
+     * Creates a <code>Kiva</code> Robot from a given map which contains <code>Kiva</code>'s starting location.
+     * The <code>Kiva</code> Robot will be initialized with the robot facing up, not carrying any pod, not having
+     * successfully dropped a pod, and with zero motor life.
+     *
+     * @param map sets both the map and the starting location of the <code>Kiva</code> Robot.
+     */
+    public Kiva(FloorMap map) {
+        this.map = map;
+        this.currentLocation = map.getInitialKivaLocation();
+        this.directionFacing = FacingDirection.UP;
+        this.carryingPod = false;
+        this.successfullyDropped = false;
+        this.motorLifetime = 0L;
+    }
+
+    /**
+     * Creates a <code>Kiva</code> Robot from a given map and separately sets <code>Kiva</code>'s starting location.
+     * The <code>Kiva</code> Robot will be initialized with the robot facing up, not carrying any pod, not having
+     * successfully dropped a pod, and with zero motor life.
+     *
+     * @param map             sets the floor map of the <code>Kiva</code> Robot.
+     * @param currentLocation sets the location of the <code>Kiva</code> Robot from <code>Point</code> class
+     */
+    public Kiva(FloorMap map, Point currentLocation) {
+        this.map = map;
+        this.currentLocation = currentLocation;
+        this.directionFacing = FacingDirection.UP;
+        this.successfullyDropped = false;
+        this.carryingPod = false;
+        this.motorLifetime = 0L;
+    }
+
+    /**
+     * Returns the location of <code>Kiva</code> Robot in coordinates (x, y).
+     *
+     * @return the (immutable) location of <code>Kiva</code> Robot.
+     */
+    public Point getCurrentLocation() {
+        return currentLocation;
+    }
+
+    /**
+     * Returns the direction of which the <code>Kiva</code> Robot is facing (Up, Down, Left, Right).
+     *
+     * @return the direction of the <code>Kiva</code> Robot.
+     */
+    public FacingDirection getDirectionFacing() {
+        return directionFacing;
+    }
+
+    /**
+     * Changes the direction of the <code>Kiva</code> Robot.
+     *
+     * @param directionFacing sets new direction value for the <code>Kiva</code> Robot.
+     */
+    public void setDirectionFacing(FacingDirection directionFacing) {
+        this.directionFacing = directionFacing;
+    }
+
+    /**
+     * Returns the <code>Kiva</code> Robot's state of having successfully dropped a pod.
+     *
+     * @return a boolean value that tells users whether the <code>Kiva</code> Robot has successfully dropped a pod.
+     */
+    public boolean isSuccesfullyDropped() {
+        return successfullyDropped;
+    }
+
+    /**
+     * Returns the <code>Kiva</code> Robot's state of carrying a pod.
+     *
+     * @return a boolean value that tells users whether the <code>Kiva</code> Robot is carrying any pod.
+     */
+    public boolean isCarryingPod() {
+        return carryingPod;
+    }
+
+    /**
+     * Sets the state of the <code>Kiva</code> Robot carrying a pod as true for testing purposes.
+     *
+     * @see KivaMoveTest testPodCollision() and testPodPressence();
+     */
+    public void setCarryingPod() {
+        this.carryingPod = true;
+    }
+
+    /**
+     * Returns the MotorLifetime of the <code>Kiva</code> Robot in milliseconds.
+     *
+     * @return <code>Kiva</code>'s motor lifetime in milliseconds.
+     */
+    public long getMotorLifetime() {
+        return motorLifetime;
+    }
+
+    /**
+     * Returns the motor lifetime of the <code>Kiva</code> Robot in hours.  As <code>Kiva</code> Robots
+     * expire after 20,000 hours, this method will help users to know when a <code>Kiva</code> Robot is near its expiration.
+     *
+     * @return <code>Kiva</code>'s motor lifetime in hours.
+     */
+    public double getMotorLifetimeInHours() {
+        return (double) motorLifetime / 36000000;
+    }
+
+    /**
+     * Updates the <code>Kiva</code> Robot's current location after the command, the direction of which <code>Kiva</code>
+     * is pointing toward, the state of <code>Kiva</code> in carrying a pod, or the state of <code>Kiva</code> in
+     * having been successfully dropped a pod.
+     *
+     * @param command a command that can be performed by the <code>Kiva</code> Robot.
+     */
+    public void move(KivaCommand command) {
+        if (command == KivaCommand.FORWARD) {
+            moveForward();
+        } else if (command == KivaCommand.TURN_LEFT) {
+            turnLeft();
+        } else if (command == KivaCommand.TURN_RIGHT) {
+            turnRight();
+        } else if (command == KivaCommand.TAKE) {
+            take();
+        } else if (command == KivaCommand.DROP) {
+            drop();
+        }
+    }
+
+    /**
+     * A helper method for the <code>FORWARD</code> command. Invoked in <code>move()</code>.
+     *
+     * @throws IllegalMoveException throws illegal move exceptions if <code>Kiva</code> runs into an obstacle
+     * @throws IllegalMoveException throws illegal move exceptions if <code>Kiva</code> is carrying a pod and moves into a pod zone.
+     */
+    public void moveForward() {
+
+        Point delta = directionFacing.getDelta();
+        currentLocation = new Point(currentLocation.getX() + delta.getX(),
+                currentLocation.getY() + delta.getY());
+
+        FloorMapObject terrain = map.getObjectAtLocation(currentLocation);
+        if (terrain == FloorMapObject.OBSTACLE) {
+            throw new IllegalMoveException(String.format("Can't MOVE: Next location %s is %s", currentLocation,
+                    terrain));
+        } else if (carryingPod && terrain == FloorMapObject.POD) {
+            throw new IllegalMoveException(String.format("Can't MOVE: Next location %s is %s.  Collision will occur!",
+                    currentLocation, terrain));
+        }
+
+        incrementMotorLifetime();
+    }
+
+    /**
+     * A helper method for the <code>TURN_LEFT</code> command. Turns the <code>Kiva</code> Robot to the left, invoked
+     * in <code>move()</code>.
+     */
+
+    public void turnLeft() {
+        switch (directionFacing) {
+            case UP:
+                directionFacing = FacingDirection.LEFT;
+                incrementMotorLifetime();
+                break;
+            case LEFT:
+                directionFacing = FacingDirection.DOWN;
+                incrementMotorLifetime();
+                break;
+            case DOWN:
+                directionFacing = FacingDirection.RIGHT;
+                incrementMotorLifetime();
+                break;
+            case RIGHT:
+                directionFacing = FacingDirection.UP;
+                incrementMotorLifetime();
+                break;
+        }
+    }
+
+    /**
+     * A helper method for the <code>TURN_RIGHT</code> command. Turns the <code>Kiva</code> Robot to the right,
+     * invoked in <code>move()</code>.
+     */
+    public void turnRight() {
+        switch (directionFacing) {
+            case UP:
+                directionFacing = FacingDirection.RIGHT;
+                incrementMotorLifetime();
+                break;
+            case RIGHT:
+                directionFacing = FacingDirection.DOWN;
+                incrementMotorLifetime();
+                break;
+            case DOWN:
+                directionFacing = FacingDirection.LEFT;
+                incrementMotorLifetime();
+                break;
+            case LEFT:
+                directionFacing = FacingDirection.UP;
+                incrementMotorLifetime();
+                break;
+        }
+    }
+
+    /**
+     * A helper method for the <code>TAKE</code> command. If successfully executed, it will change the state of the
+     * <code>Kiva</code> Robot carryingPod as true. Invoked in <code>move()</code>.
+     *
+     * @throws NoPodException       throws an exception if the <code>Kiva</code> Robot tries take a pod from an empty zone.
+     * @throws IllegalMoveException throws an exception if the <code>Kiva</code> Robot tries take a pod from a pod zone when it is
+     *                              already carrying a pod.
+     */
+    public void take() {
+        FloorMapObject terrain = map.getObjectAtLocation(currentLocation);
+        if (terrain != FloorMapObject.POD) {
+            throw new NoPodException(String.format("Can't TAKE: non-existent pod in location %s! Terrain is %s.",
+                    currentLocation, terrain));
+        }
+        if (carryingPod) {
+            throw new IllegalMoveException(String.format("Can't TAKE: current status of carryingPod is %s.",
+                    carryingPod));
+        }
+        carryingPod = true;
+    }
+
+    /**
+     * A helper method for the <code>DROP</code> command. If successfully executed, it will change the state of the
+     * <code>Kiva</code> Robot carryingPod as false, and successfullyDropped as true. Invoked in <code>move()</code>.
+     *
+     * @throws IllegalDropZoneException throws an exception if the <code>Kiva</code> Robot tries to drop a pod in a non-drop zone.
+     * @throws NoPodException           throws an exception if the <code>Kiva</code> Robot tries to drop a pod when it is not
+     *                                  carrying a pod.
+     */
+    public void drop() {
+        FloorMapObject terrain = map.getObjectAtLocation(currentLocation);
+        if (terrain != FloorMapObject.DROP_ZONE) {
+            throw new IllegalDropZoneException(String.format(
+                    "Can't DROP: location %s is %s, not a DROP ZONE!", currentLocation, terrain));
+        } else if (!carryingPod) {
+            throw new NoPodException(String.format("Can't DROP: current status of carryingPod is %s.", carryingPod));
+        } else {
+            carryingPod = false;
+            successfullyDropped = true;
+        }
+    }
+
+    /**
+     * This method will increment <code>Kiva</code> Robot's motor life in milliseconds for diagnostic purposes. After 20,000 hours,
+     * a <code>Kiva</code> Robot needs to have its motor replaced or retired.
+     *
+     * <code>Kiva</code>'s motor lifetime will be incremented by 1,000 milliseconds ONLY when the <code>Kiva</code>
+     * moves forward, turn left, or turn right.  No changes to the motor life when <code>Kiva</code> is taking or dropping a pod.
+     */
+    public void incrementMotorLifetime() {
+        motorLifetime += 1000L;
+    }
+
+
+}
